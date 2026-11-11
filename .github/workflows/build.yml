@@ -4,20 +4,14 @@ jobs:
   build:
     runs-on: macos-15-intel
     steps:
-      - name: clone hakios (branch mtk)
+      - name: clone
         run: git clone -b mtk --depth 1 https://github.com/oosexgang/hakios-xnu-kernel.git hakios
-      - name: recon setup
+      - name: read the manuals
         run: |
           cd hakios
-          echo '===== ls xnu/ ====='
-          ls xnu
-          echo '===== apply.sh ====='
-          cat xnu/apply.sh 2>/dev/null | head -80
-          echo '===== ls xnu-deps ====='
-          ls xnu-deps
-          echo '===== ls xnu-deps/host/bin ====='
-          ls xnu-deps/host/bin 2>/dev/null | head -30
-          echo '===== ls prebuilt ====='
-          ls prebuilt 2>/dev/null | head -20
-          echo '===== README build lines ====='
-          grep -n -i -A2 'build\|theos\|apply\|setup' README.md | head -60
+          echo '===== from-a-clone.md ====='
+          cat docs/from-a-clone.md
+          echo '===== mtk-porting.md ====='
+          cat docs/mtk-porting.md
+          echo '===== xnu-deps/setup.sh ====='
+          cat xnu-deps/setup.sh
