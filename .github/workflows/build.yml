@@ -1,0 +1,19 @@
+name: build-hakios
+on: [workflow_dispatch]
+jobs:
+  build:
+    runs-on: macos-13
+    steps:
+      - name: clone hakios (branch mtk)
+        run: git clone -b mtk --depth 1 https://github.com hakios
+      - name: build kernel
+        run: |
+          cd hakios
+          make x6826b_defconfig
+          make kernel
+      - name: upload result
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: hakios-out
+          path: hakios
