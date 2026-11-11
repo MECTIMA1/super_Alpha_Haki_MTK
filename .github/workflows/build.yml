@@ -2,7 +2,7 @@ name: build-hakios
 on: [workflow_dispatch]
 jobs:
   build:
-    runs-on: macos-13
+    runs-on: macos-14
     steps:
       - name: clone hakios (branch mtk)
         run: git clone -b mtk --depth 1 https://github.com hakios
