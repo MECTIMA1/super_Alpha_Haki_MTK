@@ -4,18 +4,48 @@ jobs:
   build:
     runs-on: macos-15-intel
     steps:
-      - name: clone project
-        run: git clone -b mtk --depth 1 https://github.com/oosexgang/hakios-xnu-kernel.git hakios
-      - name: 1-zig (линкер для лоадера)
-        run: cd hakios && bash tools/get-zig.sh > /tmp/s1.log 2>&1; tail -20 /tmp/s1.log
-      - name: 2-mtkloader
+      - name: чем собирали
+        run: |
+          git clone -b mtk --depth 1 https://github.com/oosexgang/hakios-xnu-kernel.git hakios
+          mkdir -p hakios/backup
+          if [ -f boot_a_magisk.img ]; then cp boot_a_magisk.img hakios/backup/boot_a_magisk.img; fi
+
+      - name: 1-theos sdk
+        run: |
+          git clone -q --depth 1 https://github.com/theos/theos.git ~/theos > /tmp/s1.log 2>&1
+          mkdir -p ~/theos/sdks
+          curl -sL -o /tmp/sdks.tar.gz https://github.com/theos/sdks/archive/refs/heads/master.tar.gz
+          tar -xzf /tmp/sdks.tar.gz -C ~/theos/sdks --strip-components=1
+          ls ~/theos/sdks | grep 16.5
+
+      - name: 2-apply
+        run: cd hakios && bash xnu/apply.sh > /tmp/s2.log 2>&1 || { tail -40 /tmp/s2.log; exit 1; }
+
+      - name: 3-setup
+        run: cd hakios && bash xnu-deps/setup.sh > /tmp/s3.log 2>&1 || { tail -40 /tmp/s3.log; exit 1; }
+
+      - name: 4-kernel (уже готов)
+        run: cd hakios && bash xnu-build.sh -j8 -k > /tmp/s4.log 2>&1; tail -5 /tmp/s4.log
+
+      - name: 5-zig
+        run: cd hakios && bash tools/get-zig.sh > /tmp/s5.log 2>&1; tail -5 /tmp/s5.log
+
+      - name: 6-userland (iOS 16.5, ~40 мин)
+        run: cd hakios && bash userland/build.sh > /tmp/s6.log 2>&1; tail -40 /tmp/s6.log
+
+      - name: 7-loader + fbdiag
         run: |
           cd hakios/mtkloader
-          bash build.sh > /tmp/s2.log 2>&1 || tail -60 /tmp/s2.log
-          ls -la
-      - name: 3-fbdiag
-        run: |
-          cd hakios/mtkloader
-          cat build_fbdiag.sh
-          bash build_fbdiag.sh > /tmp/s3.log 2>&1 || tail -60 /tmp/s3.log
-         
+          bash build.sh > /tmp/s7.log 2>&1; tail -20 /tmp/s7.log
+          bash build_fbdiag.sh >>/tmp/s7.log 2>&1; tail -20 /tmp/s7.log
+          ls -la fbdiag.img mtkloader.bin ../backup/ 2>/dev/null
+      - name: upload-all
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: hakios-final
+          path: |
+            hakios/mtkloader
+            hakios/userland
+            /tmp/*.log
+          retention-days: 5
