@@ -6,24 +6,18 @@ jobs:
     steps:
       - name: clone hakios (branch mtk)
         run: git clone -b mtk --depth 1 https://github.com/oosexgang/hakios-xnu-kernel.git hakios
-      - name: read build scripts
+      - name: recon setup
         run: |
           cd hakios
-          echo '===== xnu-build.sh ====='
-          cat xnu-build.sh
-          echo '===== xnu-env.sh ====='
-          cat xnu-env.sh
-          echo '===== tools ====='
-          ls tools
-          echo '===== mtkloader ====='
-          ls mtkloader
-      - name: try build
-        run: |
-          cd hakios
-          bash xnu-build.sh 2>&1 | tail -120
-      - name: upload result
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: hakios-out
-          path: hakios
+          echo '===== ls xnu/ ====='
+          ls xnu
+          echo '===== apply.sh ====='
+          cat xnu/apply.sh 2>/dev/null | head -80
+          echo '===== ls xnu-deps ====='
+          ls xnu-deps
+          echo '===== ls xnu-deps/host/bin ====='
+          ls xnu-deps/host/bin 2>/dev/null | head -30
+          echo '===== ls prebuilt ====='
+          ls prebuilt 2>/dev/null | head -20
+          echo '===== README build lines ====='
+          grep -n -i -A2 'build\|theos\|apply\|setup' README.md | head -60
