@@ -6,8 +6,15 @@ jobs:
     steps:
       - name: clone hakios (branch mtk)
         run: git clone -b mtk --depth 1 https://github.com/oosexgang/hakios-xnu-kernel.git hakios
-      - name: sync device configs
-        run: cd hakios && python3 tools/hakios-device.py sync x6826b
+      - name: recon tree
+        run: |
+          cd hakios
+          ls
+          find . -maxdepth 3 -iname '*hakios-device*' -o -maxdepth 3 -iname '*defconfig*'
+      - name: sync device configs (если скрипт найден)
+        run: |
+          cd hakios
+          if [ -f tools/hakios-device.py ]; then python3 tools/hakios-device.py sync x6826b; elif [ -f mtk/tools/hakios-device.py ]; then python3 mtk/tools/hakios-device.py sync x6826b; else echo 'sync script not found - пропускаем'; fi
       - name: build kernel
         run: |
           cd hakios
