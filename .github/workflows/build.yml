@@ -6,27 +6,16 @@ jobs:
     steps:
       - name: clone project
         run: git clone -b mtk --depth 1 https://github.com/oosexgang/hakios-xnu-kernel.git hakios
-      - name: 1-sdk
+      - name: 1-zig (линкер для лоадера)
+        run: cd hakios && bash tools/get-zig.sh > /tmp/s1.log 2>&1; tail -20 /tmp/s1.log
+      - name: 2-mtkloader
         run: |
-          git clone -q --depth 1 https://github.com/theos/theos.git ~/theos > /tmp/s1.log 2>&1
-          mkdir -p ~/theos/sdks
-          curl -sL -o /tmp/sdks.tar.gz https://github.com/theos/sdks/archive/refs/heads/master.tar.gz
-          tar -xzf /tmp/sdks.tar.gz -C ~/theos/sdks --strip-components=1
-          ls ~/theos/sdks | grep 16.5 || echo "НЕТ SDK 16.5"
-      - name: 2-apply
-        run: cd hakios && bash xnu/apply.sh > /tmp/s2.log 2>&1 || { tail -40 /tmp/s2.log; exit 1; }
-      - name: 3-setup
-        run: cd hakios && bash xnu-deps/setup.sh > /tmp/s3.log 2>&1 || { tail -40 /tmp/s3.log; exit 1; }
-      - name: 4-build
-        run: cd hakios && bash xnu-build.sh -j8 -k > /tmp/s4.log 2>&1; tail -40 /tmp/s4.log
-      - name: 5-check
-        run: find hakios/xnu-src -name 'mach.development*' -o -name 'kernel.development*' | head
-      - name: upload
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: hakios-kernel
-          path: |
-            hakios/xnu-src/xnu-8796.121.2/BUILD/obj/DEVELOPMENT_ARM64_BCM2837
-            /tmp/*.log
-          retention-days: 5
+          cd hakios/mtkloader
+          bash build.sh > /tmp/s2.log 2>&1 || tail -60 /tmp/s2.log
+          ls -la
+      - name: 3-fbdiag
+        run: |
+          cd hakios/mtkloader
+          cat build_fbdiag.sh
+          bash build_fbdiag.sh > /tmp/s3.log 2>&1 || tail -60 /tmp/s3.log
+         
