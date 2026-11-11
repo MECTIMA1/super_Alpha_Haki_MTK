@@ -5,7 +5,9 @@ jobs:
     runs-on: macos-15-intel
     steps:
       - name: clone hakios (branch mtk)
-        run: git clone -b mtk --depth 1 https://github.com/oosexgang/hakios-mt6768.git hakios
+        run: git clone -b mtk --depth 1 https://github.com/oosexgang/hakios-xnu-kernel.git hakios
+      - name: sync device configs
+        run: cd hakios && python3 tools/hakios-device.py sync x6826b
       - name: build kernel
         run: |
           cd hakios
