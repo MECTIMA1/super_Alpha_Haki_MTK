@@ -1,51 +1,122 @@
-name: build-hakios
+name: build-lancelot-fbdiag
+
 on: [workflow_dispatch]
+
 jobs:
   build:
     runs-on: macos-15-intel
+
     steps:
-      - name: чем собирали
+      - name: Clone HakiOS
         run: |
-          git clone -b mtk --depth 1 https://github.com/oosexgang/hakios-xnu-kernel.git hakios
-          mkdir -p hakios/backup
-          if [ -f boot_a_magisk.img ]; then cp boot_a_magisk.img hakios/backup/boot_a_magisk.img; fi
+          git clone -b mtk --depth 1 \
+            https://github.com/oosexgang/hakios-xnu-kernel.git hakios
 
-      - name: 1-theos sdk
+      - name: Download Zig
         run: |
-          git clone -q --depth 1 https://github.com/theos/theos.git ~/theos > /tmp/s1.log 2>&1
-          mkdir -p ~/theos/sdks
-          curl -sL -o /tmp/sdks.tar.gz https://github.com/theos/sdks/archive/refs/heads/master.tar.gz
-          tar -xzf /tmp/sdks.tar.gz -C ~/theos/sdks --strip-components=1
-          ls ~/theos/sdks | grep 16.5
+          cd hakios
+          bash tools/get-zig.sh
 
-      - name: 2-apply
-        run: cd hakios && bash xnu/apply.sh > /tmp/s2.log 2>&1 || { tail -40 /tmp/s2.log; exit 1; }
-
-      - name: 3-setup
-        run: cd hakios && bash xnu-deps/setup.sh > /tmp/s3.log 2>&1 || { tail -40 /tmp/s3.log; exit 1; }
-
-      - name: 4-kernel (уже готов)
-        run: cd hakios && bash xnu-build.sh -j8 -k > /tmp/s4.log 2>&1; tail -5 /tmp/s4.log
-
-      - name: 5-zig
-        run: cd hakios && bash tools/get-zig.sh > /tmp/s5.log 2>&1; tail -5 /tmp/s5.log
-
-      - name: 6-userland (iOS 16.5, ~40 мин)
-        run: cd hakios && bash userland/build.sh > /tmp/s6.log 2>&1; tail -40 /tmp/s6.log
-
-      - name: 7-loader + fbdiag
+      - name: Apply Redmi 9 lancelot parameters
         run: |
-          cd hakios/mtkloader
-          bash build.sh > /tmp/s7.log 2>&1; tail -20 /tmp/s7.log
-          bash build_fbdiag.sh >>/tmp/s7.log 2>&1; tail -20 /tmp/s7.log
-          ls -la fbdiag.img mtkloader.bin ../backup/ 2>/dev/null
-      - name: upload-all
-        if: always()
+          cd hakios
+          python3 - <<'PY'
+          from pathlib import Path
+          import re
+
+          header = Path("mtkloader/mtkdbg.h")
+          text = header.read_text()
+
+          rules = [
+              (r"(#define\s+LK_FB_BASE\s+)0x[0-9a-fA-F]+ULL",
+               r"\g<1>0x7dcb0000ULL"),
+              (r"(#define\s+LK_FB_SIZE\s+)0x[0-9a-fA-F]+ULL",
+               r"\g<1>0x2250000ULL"),
+              (r"(#define\s+LK_FB_PITCH\s+)\d+u",
+               r"\g<1>4352u"),
+              (r"(#define\s+PANEL_W\s+)\d+u",
+               r"\g<1>1080u"),
+              (r"(#define\s+PANEL_H\s+)\d+u",
+               r"\g<1>2340u"),
+          ]
+
+          for pattern, replacement in rules:
+              text, count = re.subn(pattern, replacement, text)
+              if count != 1:
+                  raise SystemExit(f"Cannot patch: {pattern}, matches={count}")
+
+          header.write_text(text)
+
+          source = Path("mtkloader/fbdiag.c")
+          text = source.read_text()
+
+          text = text.replace(
+              "X6826B MT6768",
+              "Redmi 9 lancelot MT6768"
+          )
+
+          # Эти адреса принадлежали дисплею Infinix. На Redmi их читать нельзя.
+          text, count = re.subn(
+              r'\s*dbg_dump\("DAL ",\s*0x78c5c000ULL[^;]*;\s*',
+              "\n",
+              text
+          )
+
+          # Первый запуск только рисует экран, пишет лог и возвращает Android.
+          marker = (
+              "for (unsigned p = 0; "
+              "p < sizeof(probe_pa) / sizeof(probe_pa[0]); p++) {"
+          )
+
+          safe = (
+              'dbg_puts("lancelot safe fbdiag: returning to Android\\\\n");\n'
+              "dbg_delay_ms(5000);\n"
+              "chain_android();\n"
+          )
+
+          if marker not in text:
+              raise SystemExit("Cannot find DRAM probe loop")
+
+          text = text.replace(marker, safe + marker, 1)
+          source.write_text(text)
+
+          print("Lancelot patch applied:")
+          print(" framebuffer = 0x7dcb0000")
+          print(" size        = 0x2250000")
+          print(" pitch       = 4352")
+          print(" panel       = 1080x2340")
+          print(" ramoops     = 0x4d09f000")
+          print(" safe mode   = no watchdog, no DRAM writes")
+          PY
+
+      - name: Build safe fbdiag binary
+        run: |
+          cd hakios
+          ROOT="$PWD"
+          cd mtkloader
+
+          CFLAGS="--target=aarch64-linux-gnu -ffreestanding -nostdlib \
+          -fno-builtin -mgeneral-regs-only -mstrict-align -O2 \
+          -Wall -Wextra"
+
+          clang $CFLAGS -c fbdiag_start.S -o fbdiag_start.o
+          clang $CFLAGS -c fbdiag.c -o fbdiag.o
+
+          "$ROOT/xnu-deps/host/zig/zig" ld.lld \
+            -T link.ld \
+            --oformat binary \
+            fbdiag_start.o fbdiag.o \
+            -o fbdiag.bin
+
+          ls -lh fbdiag.bin
+          shasum -a 256 fbdiag.bin
+
+      - name: Upload lancelot binary
         uses: actions/upload-artifact@v4
         with:
-          name: hakios-final
+          name: lancelot-fbdiag-safe
           path: |
-            hakios/mtkloader
-            hakios/userland
-            /tmp/*.log
-          retention-days: 5
+            hakios/mtkloader/fbdiag.bin
+            hakios/mtkloader/fbdiag.c
+            hakios/mtkloader/mtkdbg.h
+          retention-days: 7
