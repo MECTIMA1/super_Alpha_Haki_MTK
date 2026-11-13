@@ -10,6 +10,14 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
+      - name: Install Zig and create xnu-clang wrapper
+        run: |
+          brew install zig
+          sudo mkdir -p /usr/local/bin
+          printf '#!/bin/sh\nexec xcrun clang "$@"\n' | sudo tee /usr/local/bin/xnu-clang > /dev/null
+          printf '#!/bin/sh\nexec xcrun clang++ "$@"\n' | sudo tee /usr/local/bin/xnu-clang++ > /dev/null
+          sudo chmod +x /usr/local/bin/xnu-clang /usr/local/bin/xnu-clang++
+
       - name: Unpack sources and fetch XNU
         run: |
           tar -xzf src.tar.gz
@@ -32,6 +40,7 @@ jobs:
         run: |
           cd mtkloader
           sed -i '' 's/#define MENU_DEFAULT_XNU    1/#define MENU_DEFAULT_XNU    0/' mtkloader.c
+          sed -i '' 's|\./zig-linux-x86_64-0.13.0/zig|zig|g' build.sh
           chmod +x build.sh
           ./build.sh || true
 
