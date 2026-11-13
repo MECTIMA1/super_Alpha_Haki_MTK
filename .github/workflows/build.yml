@@ -1,91 +1,10 @@
-name: Build HakiOS MT6768
-
-on:
-  workflow_dispatch:
-
-jobs:
-  build:
-    runs-on: macos-15-intel
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-
-      - name: Install Zig and create smart xnu-clang wrapper
-        run: |
-          brew install zig
-          sudo mkdir -p /usr/local/bin
-          cat << 'EOF' | sudo tee /usr/local/bin/xnu-clang > /dev/null
-          #!/bin/bash
-          args=()
-          for arg in "$@"; do
-            if [ "$arg" != "-enable-trivial-auto-var-init-zero-knowing-it-will-be-removed-from-clang" ]; then
-              args+=("$arg")
-            fi
-          done
-          exec xcrun clang "${args[@]}"
-          EOF
-          cat << 'EOF' | sudo tee /usr/local/bin/xnu-clang++ > /dev/null
-          #!/bin/bash
-          args=()
-          for arg in "$@"; do
-            if [ "$arg" != "-enable-trivial-auto-var-init-zero-knowing-it-will-be-removed-from-clang" ]; then
-              args+=("$arg")
-            fi
-          done
-          exec xcrun clang++ "${args[@]}"
-          EOF
-          sudo chmod +x /usr/local/bin/xnu-clang /usr/local/bin/xnu-clang++
-
-      - name: Unpack sources, fetch XNU and copy overlay files
-        run: |
-          tar -xzf src.tar.gz
-          mkdir -p xnu-src
-          HOST="github.com"
-          ORG="apple-oss-distributions"
-          REPO="xnu.git"
-          git clone --depth 1 --branch xnu-8796.121.2 "https://${HOST}/${ORG}/${REPO}" xnu-src/xnu-8796.121.2
-          
-          # Копируем новые файлы из папки xnu/ (GenericARMPE.cpp, mc_digests.c и др.) в дерево исходников
-          for d in bsd config EXTERNAL_HEADERS iokit libkern makedefs osfmk pexpert security SETUP tools; do
-            if [ -d "xnu/$d" ]; then
-              cp -R "xnu/$d/"* "xnu-src/xnu-8796.121.2/$d/"
-            fi
-          done
-          
-          cd xnu-src/xnu-8796.121.2
-          patch -p1 < ../../xnu/redwood.patch || true
-
-      - name: Prepare iPhoneOS SDK headers and stubs
-        run: |
-          IOS_SDK=$(xcrun --sdk iphoneos --show-sdk-path)
-          MAC_SDK=$(xcrun --sdk macosx --show-sdk-path)
-          sudo mkdir -p "${IOS_SDK}/usr/local/libexec" "${IOS_SDK}/usr/local/include"
-          printf '#!/usr/bin/perl\nexit 0;\n' | sudo tee "${IOS_SDK}/usr/local/libexec/availability.pl" > /dev/null
-          sudo chmod +x "${IOS_SDK}/usr/local/libexec/availability.pl"
-          if [ -d "${MAC_SDK}/usr/local/include/kernel" ]; then
-            sudo cp -R "${MAC_SDK}/usr/local/include/kernel" "${IOS_SDK}/usr/local/include/"
-          fi
-
-      - name: Check and build mtkloader
-        run: |
-          cd mtkloader
-          sed -i '' 's/#define MENU_DEFAULT_XNU    1/#define MENU_DEFAULT_XNU    0/' mtkloader.c
-          sed -i '' 's|\./zig-linux-x86_64-0.13.0/zig|zig|g' build.sh
-          chmod +x build.sh
-          ./build.sh || true
-
       - name: Build XNU Kernel
         run: |
           chmod +x xnu-build.sh
-          ./xnu-build.sh
-
-      - name: Upload compiled binaries
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: hakios-mt6768-out
-          path: |
-            mtkloader/mtkloader.bin
-            xnu-src/**/BUILD/obj/**/mach.*
-            build/
-            *.bin
+          if ! ./xnu-build.sh > build.log 2>&1; then
+            echo "=== НАЙДЕНЫ ОШИБКИ КОМПИЛЯЦИИ ==="
+            grep -E "error:|No rule to make target|fatal error:" build.log | tail -n 30
+            echo "=== ПОСЛЕДНИЕ 30 СТРОК ЛОГА ==="
+            tail -n 30 build.log
+            exit 1
+          fi
