@@ -14,9 +14,7 @@ jobs:
         run: |
           tar -xzf src.tar.gz
           mkdir -p xnu-src
-          curl -L https://github.com -o xnu.tar.gz
-          tar -xzf xnu.tar.gz -C xnu-src
-          mv xnu-src/xnu-xnu-8796.121.2 xnu-src/xnu-8796.121.2
+          git clone --depth 1 --branch xnu-8796.121.2 https://github.com xnu-src/xnu-8796.121.2
           cd xnu-src/xnu-8796.121.2
           patch -p1 < ../../xnu/redwood.patch || true
 
