@@ -10,23 +10,35 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
+      - name: Unpack sources and fetch XNU
+        run: |
+          tar -xzf src.tar.gz
+          mkdir -p xnu-src
+          curl -L https://github.com -o xnu.tar.gz
+          tar -xzf xnu.tar.gz -C xnu-src
+          mv xnu-src/xnu-xnu-8796.121.2 xnu-src/xnu-8796.121.2
+          cd xnu-src/xnu-8796.121.2
+          patch -p1 < ../../xnu/redwood.patch || true
+
+      - name: Check and build mtkloader
+        run: |
+          cd mtkloader
+          sed -i '' 's/#define MENU_DEFAULT_XNU    1/#define MENU_DEFAULT_XNU    0/' mtkloader.c
+          chmod +x build.sh
+          ./build.sh || true
+
       - name: Build XNU Kernel
         run: |
-          if [ -f xnu-build.sh ]; then
-            chmod +x xnu-build.sh
-            ./xnu-build.sh
-          elif [ -f Makefile ]; then
-            make x6826b_defconfig || true
-            make kernel -j$(sysctl -n hw.ncpu) || make -j$(sysctl -n hw.ncpu)
-          fi
+          chmod +x xnu-build.sh
+          ./xnu-build.sh
 
-      - name: Upload compiled kernel
+      - name: Upload compiled binaries
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: hakios-mt6768-out
           path: |
-            **/mach.*
+            mtkloader/mtkloader.bin
+            xnu-src/**/BUILD/obj/**/mach.*
             build/
-            BUILD/
             *.bin
