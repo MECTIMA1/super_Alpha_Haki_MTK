@@ -52,7 +52,7 @@ jobs:
           done
           
           cd xnu-src/xnu-8796.121.2
-          patch -p1 < ../../xnu/redwood.patch || true
+          patch -N -p1 < ../../xnu/redwood.patch || true
 
       - name: Prepare iPhoneOS SDK headers and stubs
         run: |
