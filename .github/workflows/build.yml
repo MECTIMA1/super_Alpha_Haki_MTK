@@ -10,28 +10,28 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Check and build mtkloader
-        run: |
-          cd mtkloader
-          sed -i '' 's/#define MENU_DEFAULT_XNU    1/#define MENU_DEFAULT_XNU    0/' mtkloader.c
-          chmod +x build.sh
-          ./build.sh || true
+      - name: Check repository structure
+        run: ls -la
 
       - name: Build XNU Kernel
         run: |
           if [ -f xnu-build.sh ]; then
             chmod +x xnu-build.sh
             ./xnu-build.sh
+          elif [ -f Makefile ]; then
+            make x6826b_defconfig || true
+            make kernel -j$(sysctl -n hw.ncpu) || make -j$(sysctl -n hw.ncpu)
           else
-            make -j$(sysctl -n hw.ncpu)
+            echo "Сборочные файлы не найдены"
+            exit 1
           fi
 
-      - name: Upload compiled binaries
+      - name: Upload compiled kernel
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: hakios-mt6768-binaries
+          name: hakios-mt6768-kernel
           path: |
-            mtkloader/mtkloader.bin
-            xnu-src/**/BUILD/obj/**/mach.*
+            **/BUILD/obj/**/mach.*
             build/
+            *.bin
