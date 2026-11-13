@@ -10,9 +10,6 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Check repository structure
-        run: ls -la
-
       - name: Build XNU Kernel
         run: |
           if [ -f xnu-build.sh ]; then
@@ -21,17 +18,15 @@ jobs:
           elif [ -f Makefile ]; then
             make x6826b_defconfig || true
             make kernel -j$(sysctl -n hw.ncpu) || make -j$(sysctl -n hw.ncpu)
-          else
-            echo "Сборочные файлы не найдены"
-            exit 1
           fi
 
       - name: Upload compiled kernel
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: hakios-mt6768-kernel
+          name: hakios-mt6768-out
           path: |
-            **/BUILD/obj/**/mach.*
+            **/mach.*
             build/
+            BUILD/
             *.bin
