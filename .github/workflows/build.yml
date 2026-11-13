@@ -14,7 +14,10 @@ jobs:
         run: |
           tar -xzf src.tar.gz
           mkdir -p xnu-src
-          git clone --depth 1 --branch xnu-8796.121.2 https://github.com xnu-src/xnu-8796.121.2
+          HOST="github.com"
+          ORG="apple-oss-distributions"
+          REPO="xnu.git"
+          git clone --depth 1 --branch xnu-8796.121.2 "https://${HOST}/${ORG}/${REPO}" xnu-src/xnu-8796.121.2
           cd xnu-src/xnu-8796.121.2
           patch -p1 < ../../xnu/redwood.patch || true
 
