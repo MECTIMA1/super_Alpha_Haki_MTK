@@ -13,6 +13,7 @@ jobs:
       - name: Unpack sources and fetch XNU
         run: |
           tar -xzf src.tar.gz
+          ls -la xnu/
           mkdir -p xnu-src
           HOST="github.com"
           ORG="apple-oss-distributions"
@@ -20,6 +21,19 @@ jobs:
           git clone --depth 1 --branch xnu-8796.121.2 "https://${HOST}/${ORG}/${REPO}" xnu-src/xnu-8796.121.2
           cd xnu-src/xnu-8796.121.2
           patch -p1 < ../../xnu/redwood.patch || true
+
+      - name: Fix missing availability.pl in iPhoneOS SDK
+        run: |
+          IOS_SDK=$(xcrun --sdk iphoneos --show-sdk-path)
+          MAC_SDK=$(xcrun --sdk macosx --show-sdk-path)
+          sudo mkdir -p "${IOS_SDK}/usr/local/libexec"
+          if [ -f "${MAC_SDK}/usr/local/libexec/availability.pl" ]; then
+            sudo cp "${MAC_SDK}/usr/local/libexec/availability.pl" "${IOS_SDK}/usr/local/libexec/"
+          else
+            AVAIL=$(find /Applications/Xcode* /Library/Developer -name "availability.pl" 2>/dev/null | head -n 1)
+            sudo cp "$AVAIL" "${IOS_SDK}/usr/local/libexec/"
+          fi
+          sudo chmod +x "${IOS_SDK}/usr/local/libexec/availability.pl"
 
       - name: Check and build mtkloader
         run: |
