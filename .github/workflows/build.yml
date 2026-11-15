@@ -4,33 +4,40 @@ jobs:
   build:
     runs-on: macos-15-intel
     steps:
-      - name: Clone main kernel tree (mtk branch)
-        run: git clone -b mtk --depth 1 https://github.com hakios
+      - name: Clone mtk branch
+        run: git clone -b mtk --depth 1 https://github.com/oosexgang/hakios-xnu-kernel.git hakios
 
-      - name: Copy Redmi 9 device files
+      - name: Copy Redmi 9 loader files
         run: |
-          mkdir -p hakios/devices/lancelot
-          git clone --depth 1 https://github.com hakios/devices/lancelot
-          cp -f hakios/devices/lancelot/mtkloader/* hakios/mtk/loader/
+          git clone --depth 1 https://github.com redmi9-files
+          cp -f redmi9-files/mtkloader/* hakios/mtkloader/
 
-      - name: Build XNU kernel
+      - name: Check or create identity.h stub
         run: |
-          cd hakios
-          make x6826b_defconfig
-          make kernel
+          if [ ! -f hakios/xnuloader/identity.h ]; then
+            cat << 'EOF' > hakios/xnuloader/identity.h
+          struct identity_prop { const char *name; unsigned int offset; unsigned int length; };
+          static const struct identity_prop identity_root[] = {0};
+          static const unsigned char identity_root_data[] = {0};
+          static const struct identity_prop identity_product[] = {0};
+          static const unsigned char identity_product_data[] = {0};
+          static const struct identity_prop identity_haptics[] = {0};
+          static const unsigned char identity_haptics_data[] = {0};
+          EOF
+          fi
 
       - name: Build mtkloader for Redmi 9
         run: |
-          cd hakios/mtk/loader
+          cd hakios/mtkloader
           chmod +x build.sh
           ./build.sh -DXNU_WDT_SECONDS=30 -DMENU_DEFAULT_XNU=1 -DXNU_EXTRA_ARGS="\"cpus=4 mali=1 emmc_root=1 touchscreen=0\""
 
-      - name: Upload compiled files
+      - name: Upload result
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: redmi9-hakios-out
           path: |
-            hakios/mtk/loader/mtkloader.bin
-            hakios/build/
+            hakios/mtkloader/mtkloader.bin
             hakios/prebuilt/
+            hakios/tools/
