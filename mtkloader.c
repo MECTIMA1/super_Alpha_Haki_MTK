@@ -838,7 +838,7 @@ static uint32_t build_device_tree(uint64_t dt_pa, uint64_t rd_pa, uint64_t rd_si
 	dt_prop_u64(&w, "dram-base", XNU_PHYS_BASE);
 	dt_prop_u64(&w, "dram-size", XNU_MEM_SIZE);
 	dt_prop_u32(&w, "debug-enabled", 1);
-	dt_prop_u32(&w, "display-scale", 3)
+	dt_prop_u32(&w, "display-scale", 3) ;
 	dt_prop_u32(&w, "display-rotation", 0);
 	dt_prop_str(&w, "psci-method", "smc");
 	static const uint8_t wifi_address[6] = { 0x02, 0x52, 0x44, 0x57, 0x00, 0x01 };
