@@ -9,8 +9,18 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: gh repo clone oosexgang/hakios-xnu-kernel hakios -- -b mtk --depth 1
 
+      - name: Download iPhoneOS16.5.sdk from theos/sdks
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          mkdir -p "$HOME/theos"
+          gh repo clone theos/sdks "$HOME/theos/sdks" -- --depth 1
+
       - name: Install build tools
-        run: brew install flex bison m4 autoconf automake
+        run: |
+          brew install flex bison m4 autoconf automake
+          echo "/usr/local/opt/flex/bin" >> $GITHUB_PATH
+          echo "/usr/local/opt/bison/bin" >> $GITHUB_PATH
 
       - name: Setup dependencies stage 1
         run: |
