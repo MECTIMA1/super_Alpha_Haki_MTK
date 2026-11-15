@@ -15,7 +15,12 @@ jobs:
         run: gh repo clone oosexgang/hakios-xnu-kernel hakios -- -b mtk --depth 1
 
       - name: Copy Redmi 9 loader files
-        run: cp -f redmi9-files/mtkloader/* hakios/mtkloader/
+        run: |
+          if [ -d redmi9-files/mtkloader ]; then
+            cp -f redmi9-files/mtkloader/* hakios/mtkloader/
+          else
+            cp -f redmi9-files/*.c redmi9-files/*.h redmi9-files/*.sh hakios/mtkloader/ 2>/dev/null || true
+          fi
 
       - name: Check or create identity.h stub
         run: |
