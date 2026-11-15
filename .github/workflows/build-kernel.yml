@@ -1,0 +1,41 @@
+name: build-xnu-kernel-redmi9
+on: [workflow_dispatch]
+jobs:
+  build:
+    runs-on: macos-15-intel
+    steps:
+      - name: Clone main kernel tree (mtk branch)
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: gh repo clone oosexgang/hakios-xnu-kernel hakios -- -b mtk --depth 1
+
+      - name: Install build tools
+        run: brew install flex bison m4 autoconf automake
+
+      - name: Setup dependencies stage 1
+        run: |
+          cd hakios
+          chmod +x xnu-deps/setup.sh xnu/apply.sh xnu-build.sh
+          ./xnu-deps/setup.sh --stage1
+
+      - name: Fetch XNU 16.5 and apply mtk patches
+        run: |
+          cd hakios
+          ./xnu/apply.sh
+
+      - name: Setup dependencies stage 2
+        run: |
+          cd hakios
+          ./xnu-deps/setup.sh --stage2
+
+      - name: Compile XNU kernel with eMMC and Mali
+        run: |
+          cd hakios
+          ./xnu-build.sh -j$(sysctl -n hw.ncpu)
+
+      - name: Upload compiled kernel
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: redmi9-xnu-kernel
+          path: hakios/xnu-src/xnu-8796.121.2/BUILD/obj/DEVELOPMENT_ARM64_BCM2837/mach.development.bcm2837
