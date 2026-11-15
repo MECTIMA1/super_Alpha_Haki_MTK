@@ -1,28 +1,28 @@
-name: build-hakios-redmi9
+name: build-xnu-emmc
 on: [workflow_dispatch]
+
 jobs:
   build:
     runs-on: macos-15-intel
     steps:
-      - name: Get Redmi 9 files from this repo
-        uses: actions/checkout@v4
-        with:
-          path: redmi9-files
+      - name: Clone hakios mtk
+        run: git clone -b mtk --depth 1 https://github.com hakios
 
-      - name: Clone main kernel tree (mtk branch)
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: gh repo clone oosexgang/hakios-xnu-kernel hakios -- -b mtk --depth 1
-
-      - name: Build payload
+      - name: Setup xnu-deps
         run: |
           cd hakios
-          chmod +x xl_x6826b
-          ./xl_x6826b build
+          chmod +x xnu-deps/setup.sh
+          ./xnu-deps/setup.sh
 
-      - name: Upload payload
-        if: always()
+      - name: Build XNU kernel with eMMC support
+        run: |
+          cd hakios
+          source xnu-env.sh
+          make x6826b_defconfig
+          make kernel
+
+      - name: Upload compiled kernel
         uses: actions/upload-artifact@v4
         with:
-          name: redmi9-payload
-          path: hakios/build-payload.bin
+          name: xnu-emmc-kernel
+          path: hakios/xnu-src/xnu-8796.121.2/BUILD/obj/DEVELOPMENT_ARM64_BCM2837/mach.development.bcm2837
