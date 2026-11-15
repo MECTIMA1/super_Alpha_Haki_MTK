@@ -3,7 +3,7 @@ set -e
 HERE="$(cd "$(dirname "$0")" && pwd)"
 ROOT="$(cd "$HERE/.." && pwd)"
 
-LLD="$ROOT/xnu-deps/host/zig/zig ld.lld"
+LLD="zig ld.lld"
 CFLAGS="--target=aarch64-linux-gnu -ffreestanding -nostdlib -fno-builtin -mgeneral-regs-only -mstrict-align -Os -Wall -Wextra"
 
 if [ ! -f "$HERE/touchfw.h" ]; then
