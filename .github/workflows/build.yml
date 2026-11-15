@@ -36,6 +36,9 @@ jobs:
           EOF
           fi
 
+      - name: Install zig
+        run: brew install zig
+
       - name: Build mtkloader for Redmi 9
         run: |
           cd hakios/mtkloader
